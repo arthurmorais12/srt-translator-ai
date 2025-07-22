@@ -34,7 +34,10 @@ class TranslatorService:
                 if not settings.OPENAI_API_KEY:
                     raise ValueError("OpenAI API key not configured in the .env file")
                 return init_chat_model(
-                    "gpt-4.1-mini", model_provider="openai", temperature=0
+                    "gpt-4.1-mini",
+                    model_provider="openai",
+                    temperature=0,
+                    api_key=settings.OPENAI_API_KEY,
                 )
             case TranslationProvider.GOOGLE:
                 if not settings.GOOGLE_API_KEY:
@@ -45,12 +48,16 @@ class TranslatorService:
                     "gemini-2.5-flash-lite-preview-06-17",
                     model_provider="google_genai",
                     temperature=0,
+                    api_key=settings.GOOGLE_API_KEY,
                 )
             case TranslationProvider.GROQ:
                 if not settings.GROQ_API_KEY:
                     raise ValueError("Groq API key not configured in the .env file")
                 return init_chat_model(
-                    "llama-3.3-70b-versatile", model_provider="groq", temperature=0
+                    "llama-3.3-70b-versatile",
+                    model_provider="groq",
+                    temperature=0,
+                    api_key=settings.GROQ_API_KEY,
                 )
 
     def _get_prompt_template(self) -> ChatPromptTemplate:
@@ -83,7 +90,7 @@ class TranslatorService:
         if not texts:
             return []
 
-        formatted_batch = "\n".join(f"{i+1}. {text}" for i, text in enumerate(texts))
+        formatted_batch = "\n".join(f"{i + 1}. {text}" for i, text in enumerate(texts))
         response: str = self.chain.invoke(
             {
                 "text_batch": formatted_batch,
