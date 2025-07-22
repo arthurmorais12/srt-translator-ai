@@ -1,17 +1,21 @@
+import re
 from enum import Enum
-from typing import Any
+from typing import Any, List
 
 from langchain.chat_models import init_chat_model
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
 
-from src.config import settings
+from config import settings
 
 
 class TranslationProvider(str, Enum):
     OPENAI = "openai"
     GOOGLE = "google"
     GROQ = "groq"
+
+
+BATCH_DELIMITER = "|||---|||"
 
 
 class TranslatorService:
@@ -50,25 +54,54 @@ class TranslatorService:
                 )
 
     def _get_prompt_template(self) -> ChatPromptTemplate:
-        system_message = (
-            "You are a professional subtitle translator."
-            "Translate the following text from {source_lang} to {target_lang}."
-            "Do not add any extra text, explanations, or apologies."
-            "Only provide the direct translation of the text."
-            "Preserve the original meaning, tone, and formatting (like line breaks) as much as possible."
-        )
-        human_message = "{text}"
+        system_message = f"""
+        You are an expert subtitle translation engine.
+        Translate each numbered text line from '{{source_lang}}' to '{{target_lang}}'.
+        - Maintain the original meaning and tone.
+        - Return the translations in the same numbered format.
+        - **Crucially, separate each translated line with the delimiter: {BATCH_DELIMITER}**
+        - Do not add any extra text, introductions, or explanations.
+        
+        Example Input:
+        1. Hello, world.
+        2. How are you?
+        
+        Example Output:
+        1. Olá, mundo.
+        {BATCH_DELIMITER}
+        2. Como você está?
+        """
+        human_message = "{text_batch}"
 
         return ChatPromptTemplate.from_messages(
             [("system", system_message), ("user", human_message)]
         )
 
-    def translate(self, text: str, source_lang: str, target_lang: str) -> str:
-        if not text.strip():
-            return ""
+    def translate_batch(
+        self, texts: List[str], source_lang: str, target_lang: str
+    ) -> List[str]:
+        if not texts:
+            return []
 
-        response = self.chain.invoke(
-            {"text": text, "source_lang": source_lang, "target_lang": target_lang}
+        formatted_batch = "\n".join(f"{i+1}. {text}" for i, text in enumerate(texts))
+        response: str = self.chain.invoke(
+            {
+                "text_batch": formatted_batch,
+                "source_lang": source_lang,
+                "target_lang": target_lang,
+            }
         )
 
-        return response.strip()
+        translated_texts = response.split(BATCH_DELIMITER)
+
+        cleaned_translations = [
+            re.sub(r"^\d+\.\s*", "", t.strip()).strip() for t in translated_texts
+        ]
+
+        if len(cleaned_translations) != len(texts):
+            print(
+                f"[bold yellow]Warning:[/bold yellow] Batch translation mismatch. Expected {len(texts)}, got {len(cleaned_translations)}. This batch will not be translated."
+            )
+            return texts
+
+        return cleaned_translations
