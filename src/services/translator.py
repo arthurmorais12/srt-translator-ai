@@ -5,7 +5,6 @@ from typing import Any, List
 from langchain.chat_models import init_chat_model
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
-from rich import print as rprint
 
 from config import settings
 
@@ -107,7 +106,7 @@ class TranslatorService:
         ]
 
         if len(cleaned_translations) != len(texts):
-            rprint(
+            print(
                 f"[bold yellow]Warning:[/bold yellow] Batch translation mismatch. Expected {len(texts)}, got {len(cleaned_translations)}. This batch will not be translated."
             )
             return texts
